@@ -41,3 +41,17 @@ tests:
     - montgomery
     - tasty
     - tasty-quickcheck
+
+benchmarks:
+  montgomery-bench:
+    main:                Bench.hs
+    source-dirs:         benchs
+    ghc-options:
+    - -Wall
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - montgomery
+    - cryptonite
+    - gauge
