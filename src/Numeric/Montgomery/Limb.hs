@@ -88,8 +88,8 @@ limbModInv n = loop 8 inv8
     idx8 = fromIntegral (half n .&. 0x7f)
     inv8 = limbModInv8 idx8
 
-    double i = shiftL i 1
-    half i = shiftR i 1
+    double i = unsafeShiftL i 1
+    half i = unsafeShiftR i 1
 
     -- Go from inverse modulo 2^k to inverse modulo 2^(2*k):
     -- when n*i == 1 mod 2^k, then n*i*(2-n*i) == 1 mod 2^(2*k)

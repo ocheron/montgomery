@@ -130,12 +130,15 @@ mutClear !m off len = loop 0
     loop i | i .==# len = return ()
            | otherwise  = mutWrite m (off + i) 0 >> loop (succ i)
 
-mutCopy :: MutableBlock Limb s -> Block Limb -> CountOf Limb -> ST s ()
-mutCopy !dst !src len = loop 0
+mutCopy :: MutableBlock Limb s -> Offset Limb -> Block Limb -> Offset Limb
+        -> CountOf Limb -> ST s ()
+mutCopy !dst dstoff !src srcoff len = loop 0
   where
     loop i
         | i .==# len = return ()
-        | otherwise  = mutWrite dst i (uIndex src i) >> loop (succ i)
+        | otherwise  = do
+            mutWrite dst (dstoff + i) $ uIndex src (srcoff + i)
+            loop (succ i)
 
 
 {- Extension and truncation -}
@@ -506,14 +509,18 @@ bnShiftL (Bn x) n
     (q, r) = n `divMod` limbBits
 
     clear !m i
-        | i .==# off = loop m 0 i
+        | i .==# off = copyShift m i
         | otherwise  = mutWrite m i 0 >> clear m (succ i)
+
+    copyShift !m i
+        | r == 0    = mutCopy m i x 0 (len - off)
+        | otherwise = loop m 0 i
 
     loop !m prev i
         | i .==# len = seq prev $ return ()
         | otherwise  = do
             let limb  = uIndex x (i `offsetMinusE` off)
-                limb' = unsafeShiftL limb r .|. shiftR prev (limbBits - r)
+                limb' = unsafeShiftL limb r .|. unsafeShiftR prev (limbBits - r)
             mutWrite m i limb'
             loop m limb (succ i)
 
@@ -529,15 +536,19 @@ bnShiftR (Bn x) n
     (q, r) = n `divMod` limbBits
 
     clear !m i
-        | i .==# (len - off) = loop m 0 i
+        | i .==# (len - off) = copyShift m i
         | otherwise = let i' = pred i in mutWrite m i' 0 >> clear m i'
+
+    copyShift !m i
+        | r == 0    = mutCopy m 0 x (sizeAsOffset off) (len - off)
+        | otherwise = loop m 0 i
 
     loop !m prev i
         | i == 0    = seq prev $ return ()
         | otherwise = do
             let i' = pred i
                 limb  = uIndex x (i' `offsetPlusE` off)
-                limb' = unsafeShiftR limb r .|. shiftL prev (limbBits - r)
+                limb' = unsafeShiftR limb r .|. unsafeShiftL prev (limbBits - r)
             mutWrite m i' limb'
             loop m limb i'
 
@@ -609,7 +620,7 @@ bnNormDivMod nn@(Bn n) dn@(Bn d)
     | nLen > dLen = runST $ do
         -- copy of numerator as working area for remainder
         mr <- Mutable.new nLen
-        mutCopy mr n nLen
+        mutCopy mr 0 n 0 nLen
 
         -- allocate buffers for low and high quotients
         mq1 <- Mutable.new qLen
@@ -655,7 +666,7 @@ bnNormDivMod nn@(Bn n) dn@(Bn d)
     dLen = Block.length d
     qLen = nLen - dLen + 1
 
-    limbHalfBits = shiftR limbBits 1
+    limbHalfBits = unsafeShiftR limbBits 1
     Bn h = bnShiftL (bnExtendL dn 1) limbHalfBits  -- shift divisor by half limb
 
     dLast = uIndex d (sizeLastOffset dLen)
@@ -788,7 +799,8 @@ bnRedcSimple (Bn n) r (Bn t)
     | p /= r       = error "bnRedcSimple: n has not size r"
     | otherwise    = runST $ do
         tmp <- Mutable.new (r + p)
-        mutCopy tmp t tLen >> mutClear tmp (sizeAsOffset tLen) (r + p - tLen)
+        mutCopy tmp 0 t 0 tLen
+        mutClear tmp (sizeAsOffset tLen) (r + p - tLen)
         loop tmp 0
         let off = sizeAsOffset p
         c <- mutAddMut tmp off p tmp
@@ -876,7 +888,7 @@ bnPowMont b e m =
     nibbles = Prelude.foldl (nibble limbBits) [] (toLimbs e)
 
     nibble 0 t w = seq w t
-    nibble n t w = nibble (n - 4) ((w .&. 0xf) : t) (shiftR w 4)
+    nibble n t w = nibble (n - 4) ((w .&. 0xf) : t) (unsafeShiftR w 4)
 
     -- precompute 16 powers of b: b^0 .. b^15
     table  = one' : Prelude.take 15 others
