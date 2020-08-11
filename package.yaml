@@ -16,7 +16,7 @@ category:            Crypto
 description:         Experiments about arithmetic in Montgomery form.
 
 dependencies:
-- base >= 4.7 && < 5
+- base >= 4.11 && < 5
 
 ghc-options:
 - -Wall
