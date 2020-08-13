@@ -425,10 +425,10 @@ bnMul (Bn x) (Bn y) =
 
     loopOuter !m i
         | i .==# xLen = return ()
-        | otherwise   = loopInner m 0 i 0 >> loopOuter m (succ i)
+        | otherwise   = loopInner m 0 i 0
 
     loopInner !m c0 i j
-        | j .==# yLen = mutWrite m k c0
+        | j .==# yLen = mutWrite m k c0 >> loopOuter m (succ i)
         | otherwise   = do
             limb0 <- mutRead m k
             let (limb1, c1) = limbMul (uIndex x i) (uIndex y j)
@@ -440,27 +440,24 @@ bnMul (Bn x) (Bn y) =
 
 -- | Square a number.
 bnSqr :: Bn -> Bn
-bnSqr (Bn x) = withMutable_ (xLen + xLen) $ \m ->
-    mutClear m 0 (xLen + xLen) >> loopOuter m 0
+bnSqr xn@(Bn x)
+    | xLen == 0 = xn
+    | otherwise = withMutable_ (xLen + xLen) $ \m ->
+        mutClear m 0 (xLen + xLen) >> loopOuter m 0
   where
     xLen = Block.length x
 
-    loopOuter !m i
-        | i .==# xLen = return ()
-        | otherwise   = do
+    loopOuter !m i = do
 
-            -- handle diagonal term
-            let k = i + i
-            limb0 <- mutRead m k
-            let (limb1, c1) = limbMul (uIndex x i) (uIndex x i)
-                (limb2, c2) = limbAdd limb0 limb1
-            mutWrite m k limb2
+        -- handle diagonal term
+        let k = i + i
+        limb0 <- mutRead m k
+        let (limb1, c1) = limbMul (uIndex x i) (uIndex x i)
+            (limb2, c2) = limbAdd limb0 limb1
+        mutWrite m k limb2
 
-            -- non-diagonal terms with j > i
-            loopInner m (c1 + c2, 0) i (succ i)
-
-            -- next iteration
-            loopOuter m (succ i)
+        -- non-diagonal terms with j > i
+        loopInner m (c1 + c2, 0) i (succ i)
 
     -- non-diagonal terms are added twice so the carry has size limbBits+1 and
     -- we pass it as two limbs c and d, with d <= 1
@@ -472,6 +469,7 @@ bnSqr (Bn x) = withMutable_ (xLen + xLen) $ \m ->
             let (limb1, d1) = limbAdd limb0 c0
             mutWrite m k limb1
             mutWrite m (succ k) (d0 + d1)
+            loopOuter m (succ i)  -- next outer iteration
         | otherwise   = do
             limb0 <- mutRead m k
             let (limb1, c1) = limbMul (uIndex x i) (uIndex x j)
@@ -758,10 +756,9 @@ bnRedc (Bn n) r (Bn t)
         | otherwise = do
             tmpi <- mutRead tmp i
             loop2 tmp (tmpi * n0') i 0 0
-            loop1 tmp (succ i)
 
     loop2 !tmp m i c0 j
-        | j .==# p  = seq m $ loop3 tmp c0 k
+        | j .==# p  = seq m $ loop3 tmp c0 i k
         | otherwise = do
             limb0 <- mutRead tmp k
             let (limb1, c1) = limbMul m (uIndex n j)
@@ -771,13 +768,13 @@ bnRedc (Bn n) r (Bn t)
             loop2 tmp m i (c1 + c2 + c3) (succ j)
       where k = i + j
 
-    loop3 !tmp c0 k
-        | k .==# (r + p + 1) = seq c0 $ return ()
+    loop3 !tmp c0 !i k
+        | k .==# (r + p + 1) = seq c0 $ loop1 tmp (succ i)
         | otherwise = do
             limb0 <- mutRead tmp k
             let (limb1, c1) = limbAdd limb0 c0
             mutWrite tmp k limb1
-            loop3 tmp c1 (succ k)
+            loop3 tmp c1 i (succ k)
 
     -- after the main loop we get a result < 2n so need a conditional
     -- substraction to make it < n
