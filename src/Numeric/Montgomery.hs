@@ -576,7 +576,7 @@ bnModSlow xn@(Bn x) mn@(Bn m)
 
 -- | Returns quotient and remainder for a division.
 bnDivMod :: Bn -> Bn -> (Bn, Bn)
-bnDivMod nn dn@(Bn d)
+bnDivMod !nn dn@(Bn d)
     | bits == 0 =
         -- dn' is already normalized so we can call bnNormDivMod directly
         let (qn, rn) = bnNormDivMod nn dn'
