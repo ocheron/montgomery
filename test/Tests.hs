@@ -25,7 +25,7 @@ arbitraryBn :: Int -> Gen Bn
 arbitraryBn 0 = return $ fromLimbs []
 arbitraryBn n = do
     L t <- arbitrary
-    others <- vectorOf (pred n) arbitraryBoundedIntegral
+    others <- vectorOf (n - 1) arbitraryBoundedIntegral
     return $ fromLimbs (others ++ [t])
 
 instance Arbitrary Bn where
@@ -73,7 +73,7 @@ z :: Int -> Bn
 z n = fromLimbs (replicate n 0)
 
 s :: Limb -> Int -> Bn
-s i n = fromLimbs (i : replicate (pred n) 0)
+s i n = fromLimbs (i : replicate (n - 1) 0)
 
 extend :: Int -> Bn -> Bn
 extend n = fromLimbs . (++ replicate n 0) . toLimbs

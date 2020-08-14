@@ -128,7 +128,7 @@ mutClear :: MutableBlock Limb s -> Offset Limb -> CountOf Limb -> ST s ()
 mutClear !m off len = loop 0
   where
     loop i | i .==# len = return ()
-           | otherwise  = mutWrite m (off + i) 0 >> loop (succ i)
+           | otherwise  = mutWrite m (off + i) 0 >> loop (i + 1)
 
 mutCopy :: MutableBlock Limb s -> Offset Limb -> Block Limb -> Offset Limb
         -> CountOf Limb -> ST s ()
@@ -138,7 +138,7 @@ mutCopy !dst dstoff !src srcoff len = loop 0
         | i .==# len = return ()
         | otherwise  = do
             mutWrite dst (dstoff + i) $ uIndex src (srcoff + i)
-            loop (succ i)
+            loop (i + 1)
 
 
 {- Extension and truncation -}
@@ -192,7 +192,7 @@ bnAdd1C (Bn x) y = withMutable len $ \m -> loop m y 0
         | otherwise  = do
             let (limb, c') = limbAdd (uIndex x i) c
             mutWrite m i limb
-            loop m c' (succ i)
+            loop m c' (i + 1)
 
 -- | Add two numbers of the same size.
 bnAdd :: Bn -> Bn -> Bn
@@ -212,7 +212,7 @@ bnAddC (Bn x) (Bn y) c
             let (limb1, c1) = limbAdd (uIndex x i) (uIndex y i)
                 (limb2, c2) = limbAdd limb1 c0
             mutWrite m i limb2
-            loop m (c1 + c2) (succ i)
+            loop m (c1 + c2) (i + 1)
 
 mutAddMut :: MutableBlock Limb s -> Offset Limb -> CountOf Limb
           -> MutableBlock Limb s -> ST s Limb
@@ -226,7 +226,7 @@ mutAddMut !x off xLen y = loop 0 0
             let (limb1, c1) = limbAdd limb0 limb
                 (limb2, c2) = limbAdd limb1 c0
             mutWrite x (off + i) limb2
-            loop (c1 + c2) (succ i)
+            loop (c1 + c2) (i + 1)
 
 -- | Conditionally add two numbers of the same size.
 bnAddCond :: Bn -> Limb -> Bn -> Bn
@@ -246,7 +246,7 @@ bnAddCondC (Bn x) !mask (Bn y) c
             let (limb1, c1) = limbAdd (uIndex x i) (uIndex y i .&. mask)
                 (limb2, c2) = limbAdd limb1 c0
             mutWrite m i limb2
-            loop m (c1 + c2) (succ i)
+            loop m (c1 + c2) (i + 1)
 
 mutAddCond :: MutableBlock Limb s -> Offset Limb -> CountOf Limb -> Limb
            -> Block Limb -> ST s Limb
@@ -259,7 +259,7 @@ mutAddCond !x off xLen !mask y = loop 0 0
             let (limb1, c1) = limbAdd limb0 (uIndex y i .&. mask)
                 (limb2, c2) = limbAdd limb1 c0
             mutWrite x (off + i) limb2
-            loop (c1 + c2) (succ i)
+            loop (c1 + c2) (i + 1)
 
 
 {- Negation -}
@@ -279,7 +279,7 @@ bnNegateB (Bn x) b = withMutable len $ \m -> loop m b 0
             let (limb1, b1) = limbSub 0 (uIndex x i)
                 (limb2, b2) = limbSub limb1 b0
             mutWrite m i limb2
-            loop m (b1 + b2) (succ i)
+            loop m (b1 + b2) (i + 1)
 
 
 {- Substraction -}
@@ -298,7 +298,7 @@ bnSub1B (Bn x) b = withMutable len $ \m -> loop m b 0
         | otherwise  = do
             let (limb, b') = limbSub (uIndex x i) b0
             mutWrite m i limb
-            loop m b' (succ i)
+            loop m b' (i + 1)
 
 -- | Substract two numbers of the same size.
 bnSub :: Bn -> Bn -> Bn
@@ -318,7 +318,7 @@ bnSubB (Bn x) (Bn y) b
             let (limb1, b1) = limbSub (uIndex x i) (uIndex y i)
                 (limb2, b2) = limbSub limb1 b0
             mutWrite m i limb2
-            loop m (b1 + b2) (succ i)
+            loop m (b1 + b2) (i + 1)
 
 mutSub :: MutableBlock Limb s -> Offset Limb -> CountOf Limb -> Block Limb
        -> ST s Limb
@@ -331,7 +331,7 @@ mutSub !x off xLen y = loop 0 0
             let (limb1, b1) = limbSub limb0 (uIndex y i)
                 (limb2, b2) = limbSub limb1 b0
             mutWrite x (off + i) limb2
-            loop (b1 + b2) (succ i)
+            loop (b1 + b2) (i + 1)
 
 -- | Conditionally substract two numbers of the same size.
 bnSubCond :: Bn -> Limb -> Bn -> Bn
@@ -351,7 +351,7 @@ bnSubCondB (Bn x) !mask (Bn y) b
             let (limb1, b1) = limbSub (uIndex x i) (uIndex y i .&. mask)
                 (limb2, b2) = limbSub limb1 b0
             mutWrite m i limb2
-            loop m (b1 + b2) (succ i)
+            loop m (b1 + b2) (i + 1)
 
 mutSubCond :: MutableBlock Limb s -> Offset Limb -> CountOf Limb -> Limb
            -> Block Limb -> ST s Limb
@@ -364,7 +364,7 @@ mutSubCond !x off xLen !mask y = loop 0 0
             let (limb1, b1) = limbSub limb0 (uIndex y i .&. mask)
                 (limb2, b2) = limbSub limb1 b0
             mutWrite x (off + i) limb2
-            loop (b1 + b2) (succ i)
+            loop (b1 + b2) (i + 1)
 
 
 {- Multiplication -}
@@ -381,7 +381,7 @@ bnMul1 (Bn x) !y = withMutable_ (len + 1) $ \m -> loop m 0 0
             let (limb1, c1) = limbMul (uIndex x i) y
                 (limb2, c2) = limbAdd limb1 c0
             mutWrite m i limb2
-            loop m (c1 + c2) (succ i)
+            loop m (c1 + c2) (i + 1)
 
 mutAddMul1
     :: MutableBlock Limb s -> Offset Limb
@@ -397,7 +397,7 @@ mutAddMul1 !m off x xLen !y = loop 0 0
                 (limb2, c2) = limbAdd limb0 limb1
                 (limb3, c3) = limbAdd limb2 c0
             mutWrite m (off + i) limb3
-            loop (c1 + c2 + c3) (succ i)
+            loop (c1 + c2 + c3) (i + 1)
 
 mutSubMul1
     :: MutableBlock Limb s -> Offset Limb
@@ -413,7 +413,7 @@ mutSubMul1 !m off x xLen !y = loop 0 0
                 (limb2, b2) = limbSub limb0 limb1
                 (limb3, b3) = limbSub limb2 b0
             mutWrite m (off + i) limb3
-            loop (b1 + b2 + b3) (succ i)
+            loop (b1 + b2 + b3) (i + 1)
 
 -- | Multiply two numbers.
 bnMul :: Bn -> Bn -> Bn
@@ -428,14 +428,14 @@ bnMul (Bn x) (Bn y) =
         | otherwise   = loopInner m 0 i 0
 
     loopInner !m c0 i j
-        | j .==# yLen = mutWrite m k c0 >> loopOuter m (succ i)
+        | j .==# yLen = mutWrite m k c0 >> loopOuter m (i + 1)
         | otherwise   = do
             limb0 <- mutRead m k
             let (limb1, c1) = limbMul (uIndex x i) (uIndex y j)
                 (limb2, c2) = limbAdd limb0 limb1
                 (limb3, c3) = limbAdd limb2 c0
             mutWrite m k limb3
-            loopInner m (c1 + c2 + c3) i (succ j)
+            loopInner m (c1 + c2 + c3) i (j + 1)
           where k = i + j
 
 -- | Square a number.
@@ -457,7 +457,7 @@ bnSqr xn@(Bn x)
         mutWrite m k limb2
 
         -- non-diagonal terms with j > i
-        loopInner m (c1 + c2, 0) i (succ i)
+        loopInner m (c1 + c2, 0) i (i + 1)
 
     -- non-diagonal terms are added twice so the carry has size limbBits+1 and
     -- we pass it as two limbs c and d, with d <= 1
@@ -468,8 +468,8 @@ bnSqr xn@(Bn x)
             limb0 <- mutRead m k
             let (limb1, d1) = limbAdd limb0 c0
             mutWrite m k limb1
-            mutWrite m (succ k) (d0 + d1)
-            loopOuter m (succ i)  -- next outer iteration
+            mutWrite m (k + 1) (d0 + d1)
+            loopOuter m (i + 1)  -- next outer iteration
         | otherwise   = do
             limb0 <- mutRead m k
             let (limb1, c1) = limbMul (uIndex x i) (uIndex x j)
@@ -478,7 +478,7 @@ bnSqr xn@(Bn x)
                 (limb4, c4) = limbAdd limb3 c0
                 (c5,    d1) = limbAdd (d0 + c1 + c2) (c1 + c3 + c4)
             mutWrite m k limb4
-            loopInner m (c5, d1) i (succ j)
+            loopInner m (c5, d1) i (j + 1)
           where k = i + j
 
 {- Bit functions -}
@@ -486,13 +486,13 @@ bnSqr xn@(Bn x)
 bnClzVarTime :: Bn -> Int
 bnClzVarTime (Bn x)
     | len == 0  = 0
-    | otherwise = go 0 (pred $ sizeAsOffset len)
+    | otherwise = go 0 (sizeLastOffset len)
   where
     len = Block.length x
 
     go acc i
         | i == 0 || limb > 0 = acc + fromIntegral (limbClz limb)
-        | otherwise          = go (acc + limbBits) (pred i)
+        | otherwise          = go (acc + limbBits) (i - 1)
       where limb = uIndex x i
 
 -- | Shift a number to the left by @n@ bits.
@@ -508,7 +508,7 @@ bnShiftL (Bn x) n
 
     clear !m i
         | i .==# off = copyShift m i
-        | otherwise  = mutWrite m i 0 >> clear m (succ i)
+        | otherwise  = mutWrite m i 0 >> clear m (i + 1)
 
     copyShift !m i
         | r == 0    = mutCopy m i x 0 (len - off)
@@ -520,7 +520,7 @@ bnShiftL (Bn x) n
             let limb  = uIndex x (i `offsetMinusE` off)
                 limb' = unsafeShiftL limb r .|. unsafeShiftR prev (limbBits - r)
             mutWrite m i limb'
-            loop m limb (succ i)
+            loop m limb (i + 1)
 
 -- | Shift a number to the right by @n@ bits.
 bnShiftR :: Bn -> Int -> Bn
@@ -535,7 +535,7 @@ bnShiftR (Bn x) n
 
     clear !m i
         | i .==# (len - off) = copyShift m i
-        | otherwise = let i' = pred i in mutWrite m i' 0 >> clear m i'
+        | otherwise = let i' = i - 1 in mutWrite m i' 0 >> clear m i'
 
     copyShift !m i
         | r == 0    = mutCopy m 0 x (sizeAsOffset off) (len - off)
@@ -544,7 +544,7 @@ bnShiftR (Bn x) n
     loop !m prev i
         | i == 0    = seq prev $ return ()
         | otherwise = do
-            let i' = pred i
+            let i' = i - 1
                 limb  = uIndex x (i' `offsetPlusE` off)
                 limb' = unsafeShiftR limb r .|. unsafeShiftL prev (limbBits - r)
             mutWrite m i' limb'
@@ -567,7 +567,7 @@ bnModSlow xn@(Bn x) mn@(Bn m)
 
     loop s a
         | s < 0     = a
-        | otherwise = loop (pred s) a''
+        | otherwise = loop (s - 1) a''
       where
         mShifted = bnShiftL mn s
         (a', b)  = bnSubB a mShifted 0  -- try substraction
@@ -668,7 +668,7 @@ bnNormDivMod nn@(Bn n) dn@(Bn d)
     Bn h = bnShiftL (bnExtendL dn 1) limbHalfBits  -- shift divisor by half limb
 
     dLast = uIndex d (sizeLastOffset dLen)
-    v | dLast < maxBound = limbInv (succ dLast)
+    v | dLast < maxBound = limbInv (dLast + 1)
       | otherwise = limbInv dLast
 
     loop !mr !mq0 !mq1 nh i
@@ -691,7 +691,7 @@ bnNormDivMod nn@(Bn n) dn@(Bn d)
             b <- mutSubMul1 mr i d dLen q0h'
 
             -- next iteration
-            loop mr mq0 mq1 (nh'' - b) (pred i)
+            loop mr mq0 mq1 (nh'' - b) (i - 1)
 
     -- set M to X - Y
     subB !m x y len b = go b 0
@@ -702,7 +702,7 @@ bnNormDivMod nn@(Bn n) dn@(Bn d)
                 let (limb1, b1) = limbSub (uIndex x i) (uIndex y i)
                     (limb2, b2) = limbSub limb1 b0
                 mutWrite m i limb2
-                go (b1 + b2) (succ i)
+                go (b1 + b2) (i + 1)
 
     -- shift X to the left by limbHalfBits and add Y
     addShiftHalfL mx my len = go 0 0 0
@@ -717,7 +717,7 @@ bnNormDivMod nn@(Bn n) dn@(Bn d)
                 let (limb1, c1) = limbAdd limb0 limb'
                     (limb2, c2) = limbAdd limb1 c0
                 mutWrite mx i limb2
-                go limb (c1 + c2) (succ i)
+                go limb (c1 + c2) (i + 1)
 
 
 {- Montgomery -}
@@ -745,11 +745,11 @@ bnRedc (Bn n) r (Bn t)
     tCopy !m i
         | i .==# tLen = tCopy' m i
         | otherwise   =
-            mutWrite m i (uIndex t i) >> tCopy m (succ i)
+            mutWrite m i (uIndex t i) >> tCopy m (i + 1)
 
     tCopy' !m i
         | i .==# (r + p) = mutWrite m i 0
-        | otherwise      = mutWrite m i 0 >> tCopy' m (succ i)
+        | otherwise      = mutWrite m i 0 >> tCopy' m (i + 1)
 
     loop1 !tmp i
         | i .==# r  = return ()
@@ -765,16 +765,16 @@ bnRedc (Bn n) r (Bn t)
                 (limb2, c2) = limbAdd limb0 limb1
                 (limb3, c3) = limbAdd limb2 c0
             mutWrite tmp k limb3
-            loop2 tmp m i (c1 + c2 + c3) (succ j)
+            loop2 tmp m i (c1 + c2 + c3) (j + 1)
       where k = i + j
 
     loop3 !tmp c0 !i k
-        | k .==# (r + p + 1) = seq c0 $ loop1 tmp (succ i)
+        | k .==# (r + p + 1) = seq c0 $ loop1 tmp (i + 1)
         | otherwise = do
             limb0 <- mutRead tmp k
             let (limb1, c1) = limbAdd limb0 c0
             mutWrite tmp k limb1
-            loop3 tmp c1 i (succ k)
+            loop3 tmp c1 i (k + 1)
 
     -- after the main loop we get a result < 2n so need a conditional
     -- substraction to make it < n
@@ -815,7 +815,7 @@ bnRedcSimple (Bn n) r (Bn t)
         | otherwise = do
             tmpi <- mutRead m i
             mutAddMul1 m i n p (tmpi * n0') >>= mutWrite m i
-            loop m (succ i)
+            loop m (i + 1)
 
 bnToMontgomery :: Bn -> CountOf Limb -> Bn -> Bn
 bnToMontgomery m !r x = snd $ bnDivMod (bnExtendR x r) m
@@ -907,9 +907,9 @@ bnSelect table len !n = withMutable_ len $ \m -> loop m 0
   where
     loop !m i
         | i .==# len = return ()
-        | otherwise  = scanWrite m i 0 0 table >> loop m (succ i)
+        | otherwise  = scanWrite m i 0 0 table >> loop m (i + 1)
 
     scanWrite m i acc p []        = seq p $ mutWrite m i acc
     scanWrite m i acc p (Bn a:as) =
         let mask = complement (limbNotZero (n - p))
-         in scanWrite m i (acc .|. (uIndex a i .&. mask)) (succ p) as
+         in scanWrite m i (acc .|. (uIndex a i .&. mask)) (p + 1) as

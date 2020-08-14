@@ -13,9 +13,9 @@ x4-x8 slowdown depending on bit size of the numbers:
 
 ```txt
 Benchmark montgomery-bench: RUNNING...
-montgomery/expSafe/curve25519            mean 12.29 μs  ( +- 138.9 ns  )
-montgomery/expSafe/ffdhe3072             mean 9.926 ms  ( +- 91.66 μs  )
-montgomery/bnPowMont/curve25519          mean 87.67 μs  ( +- 275.5 ns  )
-montgomery/bnPowMont/ffdhe3072           mean 40.69 ms  ( +- 169.8 μs  )
+montgomery/expSafe/curve25519            mean 12.25 μs  ( +- 83.92 ns  )
+montgomery/expSafe/ffdhe3072             mean 9.903 ms  ( +- 61.70 μs  )
+montgomery/bnPowMont/curve25519          mean 81.29 μs  ( +- 186.2 ns  )
+montgomery/bnPowMont/ffdhe3072           mean 36.45 ms  ( +- 47.86 μs  )
 Benchmark montgomery-bench: FINISH
 ```
