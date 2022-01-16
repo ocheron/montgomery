@@ -174,7 +174,7 @@ main = defaultMain $ testGroup "montgomery"
                 (shiftL (toNatural x) (limbBits * numLimbs) - toNatural t) `mod` toNatural n == 0
         , testProperty "redc-simple" $ \(SzOdd n) (Sz t) ->
             let r = sz n
-                x = bnRedcSimple n (fromIntegral r) t
+                x = bnRedcSimple True n (fromIntegral r) t
              in toNatural x < toNatural n &&
                 (shiftL (toNatural x) (limbBits * r) - toNatural t) `mod` toNatural n == 0
         , testProperty "add" $ \(SzOdd m) a b ->

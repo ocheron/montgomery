@@ -4,7 +4,7 @@ github:              "ocheron/montgomery"
 license:             BSD3
 author:              "Olivier Chéron"
 maintainer:          "olivier.cheron@gmail.com"
-copyright:           "2020 Olivier Chéron"
+copyright:           "2022 Olivier Chéron"
 
 extra-source-files:
 - README.md

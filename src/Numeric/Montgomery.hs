@@ -48,6 +48,7 @@ import Basement.NormalForm
 import Basement.Types.OffsetSize
 
 import Control.DeepSeq
+import Control.Monad
 import Control.Monad.ST
 
 import Data.Bits
@@ -788,8 +789,8 @@ bnRedc (Bn n) r (Bn t)
         return ()
 
 -- | Multi-precision REDC with @r@ equal to size of @n@.
-bnRedcSimple :: Bn -> CountOf Limb -> Bn -> Bn
-bnRedcSimple (Bn n) r (Bn t)
+bnRedcSimple :: Bool -> Bn -> CountOf Limb -> Bn -> Bn
+bnRedcSimple !reduceFull (Bn n) r (Bn t)
     | p == 0       = error "bnRedcSimple: n must be > 0"
     | even n0      = error "bnRedcSimple: n must be odd"
     | tLen > r + p = error "bnRedcSimple: t is too large"
@@ -802,6 +803,9 @@ bnRedcSimple (Bn n) r (Bn t)
         let off = sizeAsOffset p
         c <- mutAddMut tmp off p tmp
         _ <- mutSubCond tmp off p (negate c) n
+        when reduceFull $ do
+            b <- mutSub tmp off p n
+            void $ mutAddCond tmp off p (negate b) n
         Bn <$> uFreezeSub tmp off p
   where
     p    = Block.length n
@@ -821,7 +825,7 @@ bnToMontgomery :: Bn -> CountOf Limb -> Bn -> Bn
 bnToMontgomery m !r x = snd $ bnDivMod (bnExtendR x r) m
 
 bnFromMontgomery :: Bn -> CountOf Limb -> Bn -> Bn
-bnFromMontgomery = bnRedcSimple
+bnFromMontgomery = bnRedcSimple True
 
 -- | Perform addition in Montgomery form, to return (x + y) mod m.
 --
@@ -849,7 +853,7 @@ bnMulMont x y m =
      in bnFromMontgomery m r z'
   where
     r = Block.length (unBn m)
-    mul a b = bnRedcSimple m r (bnMul a b)
+    mul a b = bnRedcSimple False m r (bnMul a b)
 
 -- | Perform squaring in Montgomery form, to return x^2 mod m.
 --
@@ -862,7 +866,7 @@ bnSqrMont x m =
      in bnFromMontgomery m r z'
   where
     r = Block.length (unBn m)
-    sqr a = bnRedcSimple m r (bnSqr a)
+    sqr a = bnRedcSimple False m r (bnSqr a)
 
 -- | Perform exponentiation in Montgomery form, to return b^e mod m.
 bnPowMont :: Bn -> Bn -> Bn -> Bn
@@ -872,8 +876,8 @@ bnPowMont b e m =
   where
     r = Block.length (unBn m)
 
-    mul x y = bnRedcSimple m r (bnMul x y)
-    sqr x = bnRedcSimple m r (bnSqr x)
+    mul x y = bnRedcSimple False m r (bnMul x y)
+    sqr x = bnRedcSimple False m r (bnSqr x)
     sqr4 = sqr . sqr . sqr . sqr
 
     one  = fromLimbs [1]
